@@ -371,7 +371,7 @@ if ($filesToDelete)
     $htmlBody += "SMTP Server: " + $smtpServer + "<br />"
     $htmlBody += "SMTP Port: " + $smtpport + "<br />"
 
-    if ($smtpSSL) 
+    if ($smtpSSL)
     {
         $htmlBody += "SMTP SSL: Yes <br />"
     }
