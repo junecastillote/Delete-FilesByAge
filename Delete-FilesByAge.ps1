@@ -102,7 +102,7 @@ Param(
 
         #switch to indicate if SSL will be used for SMTP relay
         [Parameter()]
-        [switch]$smtpSSL        
+        [switch]$smtpSSL
 )
 
 #start FUNCTIONS
@@ -210,7 +210,7 @@ $mailHeader=@'
 <head>
 <style>
 table {
-  font-family: "Century Gothic", sans-serif;
+  font-family: Tahoma, sans-serif;
   border-collapse: collapse;
   width: 100%;
 }
@@ -219,7 +219,6 @@ td, th {
   text-align: left;
   padding: 8px;
 }
-
 </style>
 </head>
 '@
@@ -330,15 +329,21 @@ if ($filesToDelete)
     }
 
     $htmlBody += $mailHeader
-    $htmlBody += "<body><table>"
-    $htmlBody += "<tr><th>--- File Deletion Task Summary ---</th></tr>"
-    $htmlBody += "<tr><th>Paths</th><td>" + ($Paths -join ";<br />")+ "</td></tr>"
-    $htmlBody += "<tr><th>Total Number of Files</th><td>" + ($summary.TotalNumberOfFiles) + " (" + ($summary.TotalSizeOfAllFiles) + " bytes)</td></tr>"
-    $htmlBody += "<tr><th>Successful Deletion</th><td>" + ($summary.SuccessfulDeletions) + " (" + ($summary.TotalSuccessfulDeletionSize) + " bytes)</td></tr>"
-    $htmlBody += "<tr><th>Failed Deletion</th><td>" + ($summary.FailedDeletions) + " (" + ($summary.TotalFailedDeletionSize) + " bytes)</td></tr>"
-    $htmlBody += "</table>"
+    #$htmlBody += "<body><table>"
+    #$htmlBody += "<tr><th>--- File Deletion Task Summary ---</th></tr>"
+    #$htmlBody += "<tr><th>Paths</th><td>" + ($Paths -join ";<br />")+ "</td></tr>"
+    #$htmlBody += "<tr><th>Total Number of Files</th><td>" + ($summary.TotalNumberOfFiles) + " (" + ($summary.TotalSizeOfAllFiles) + " bytes)</td></tr>"
+    #$htmlBody += "<tr><th>Successful Deletion</th><td>" + ($summary.SuccessfulDeletions) + " (" + ($summary.TotalSuccessfulDeletionSize) + " bytes)</td></tr>"
+    #$htmlBody += "<tr><th>Failed Deletion</th><td>" + ($summary.FailedDeletions) + " (" + ($summary.TotalFailedDeletionSize) + " bytes)</td></tr>"
+    #$htmlBody += "</table>"
 
-    #=====
+    $htmlBody += '<body><p><font size="2" face="Tahoma">'
+    $htmlBody += "<b>[--- File Deletion Task Summary ---]</b><br /><br />"
+    $htmlBody += "<b>Paths:</b> " + ($Paths -join " ; ")+ "<br />"
+    $htmlBody += "<b>Total Number of Files:</b> " + ($summary.TotalNumberOfFiles) + " (" + ($summary.TotalSizeOfAllFiles) + " bytes)<br />"
+    $htmlBody += "<b><font color=""Green"">Successful Deletion:</b></font> " + ($summary.SuccessfulDeletions) + " (" + ($summary.TotalSuccessfulDeletionSize) + " bytes)<br />"
+    $htmlBody += "<b><font color=""Red"">Failed Deletion:</b></font> " + ($summary.FailedDeletions) + " (" + ($summary.TotalFailedDeletionSize) + " bytes)<br />"
+    $htmlBody += "<br /><br />"
     $htmlBody += '<p><font size="2" face="Tahoma"><u>Paremeters</u><br />'
     $htmlBody += '<b>[SELECTION]</b><br />'
     $htmlBody += "Included: " + ($Include -join ";") + "<br />"
@@ -356,11 +361,11 @@ if ($filesToDelete)
 
     if ($sendEmail)
     {
-        $htmlBody += "Send Email Report: Yes <br /><br />"
+        $htmlBody += "Send Email Report: Yes <br />"
     }
     else 
     {
-        $htmlBody += "Send Email Report: No <br /><br />"
+        $htmlBody += "Send Email Report: No <br />"
     }
 
     $htmlBody += "SMTP Server: " + $smtpServer + "<br />"
