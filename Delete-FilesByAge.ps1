@@ -1,7 +1,7 @@
 
 <#PSScriptInfo
 
-.VERSION 1.1
+.VERSION 1.2
 
 .GUID f03ddea5-f6e3-498a-b249-1ac6b7ec8f01
 
@@ -45,7 +45,7 @@ Param(
         [string[]]$Paths,
 
         #list of files or extension to INCLUDE (eg. *.blg,*.txt)
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory=$true)]
         [string[]]$Include,
 
         #list of files or extension to EXCLUDE (eg. *.blg,*.txt)
@@ -56,13 +56,8 @@ Param(
         [Parameter()]
         [switch]$Recurse,
 
-        #start Date of deletion
         [Parameter(Mandatory=$true)]
-        [datetime]$startDate,
-
-        #start Date of deletion
-        [Parameter(Mandatory=$true)]
-        [datetime]$endDate,
+        [int]$daysToKeep,
 
         #path to the output/Report directory (eg. c:\scripts\output)
         [Parameter(Mandatory=$true)]
@@ -208,18 +203,6 @@ $mailHeader=@'
 <!DOCTYPE html>
 <html>
 <head>
-<style>
-table {
-  font-family: Tahoma, sans-serif;
-  border-collapse: collapse;
-  width: 100%;
-}
-td, th {
-  border: 1px solid #dddddd;
-  text-align: left;
-  padding: 8px;
-}
-</style>
 </head>
 '@
 #===========================================
@@ -268,7 +251,9 @@ if ($Exclude){$fileParams+=@{Exclude=$Exclude}}
 
 $fileParams
 Write-Host ""
-$filesToDelete = Get-ChildItem @fileParams | Where-Object {$_.LastWriteTime -ge $startDate -AND $_.LastAccessTime -le $endDate -and !$_.PSIsContainer}
+[datetime]$oldDate = (Get-Date).AddDays(-$daysToKeep)
+#$filesToDelete = Get-ChildItem @fileParams | Where-Object {$_.LastWriteTime -ge $startDate -AND $_.LastAccessTime -le $endDate -and !$_.PSIsContainer}
+$filesToDelete = Get-ChildItem @fileParams | Where-Object {$_.LastWriteTime -lt $oldDate -and !$_.PSIsContainer}
 #$filesToDelete = $filesToDelete | Where-Object {!$_.PSIsContainer}
 #===========================================
 #end Files List
