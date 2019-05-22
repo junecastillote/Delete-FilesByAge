@@ -268,7 +268,8 @@ if ($Exclude){$fileParams+=@{Exclude=$Exclude}}
 
 $fileParams
 Write-Host ""
-$filesToDelete = Get-ChildItem @fileParams | Where-Object {$_.LastWriteTime -ge $startDate -AND $_.LastAccessTime -le $endDate}
+$filesToDelete = Get-ChildItem @fileParams | Where-Object {$_.LastWriteTime -ge $startDate -AND $_.LastAccessTime -le $endDate -and !$_.PSIsContainer}
+#$filesToDelete = $filesToDelete | Where-Object {!$_.PSIsContainer}
 #===========================================
 #end Files List
 
