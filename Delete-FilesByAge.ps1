@@ -1,0 +1,426 @@
+
+<#PSScriptInfo
+
+.VERSION 1.0
+
+.GUID f03ddea5-f6e3-498a-b249-1ac6b7ec8f01
+
+.AUTHOR June Castillote
+
+.COMPANYNAME www.lazyexchangeadmin.com
+
+.COPYRIGHT june.castillote@gmail.com
+
+.TAGS
+
+.LICENSEURI
+
+.PROJECTURI
+
+.ICONURI
+
+.EXTERNALMODULEDEPENDENCIES 
+
+.REQUIREDSCRIPTS
+
+.EXTERNALSCRIPTDEPENDENCIES
+
+.RELEASENOTES
+
+
+.PRIVATEDATA
+
+#>
+
+<# 
+
+.DESCRIPTION 
+ Delete files from specified paths based on age, with email summary reporting. 
+
+#> 
+Param(
+
+        #paths to clean up (eg. "c:\Folder1","c:\folder2")
+        [Parameter(Mandatory=$true)]
+        [string[]]$Paths,
+
+        #list of files or extension to INCLUDE (eg. *.blg,*.txt)
+        [Parameter(Mandatory=$false)]
+        [string[]]$Include,
+
+        #list of files or extension to EXCLUDE (eg. *.blg,*.txt)
+        [Parameter(Mandatory=$false)]
+        [string[]]$Exclude,
+
+        #switch to indicate recursive action
+        [Parameter()]
+        [switch]$Recurse,
+
+        #start Date of deletion
+        [Parameter(Mandatory=$true)]
+        [datetime]$fromDate,
+
+        #start Date of deletion
+        [Parameter(Mandatory=$true)]
+        [datetime]$toDate,
+
+        #path to the output/Report directory (eg. c:\scripts\output)
+        [Parameter(Mandatory=$true)]
+		[string]$outputDirectory,
+
+        #path to the log directory (eg. c:\scripts\logs)
+        [Parameter()]
+        [string]$logDirectory,
+
+        #prefix string for the report (ex. COMPANY)
+        [Parameter()]
+        [string]$headerPrefix,
+        
+        #Sender Email Address
+        [Parameter()]
+        [string]$sender,
+
+        #Recipient Email Addresses - separate with comma
+        [Parameter()]
+        [string[]]$recipients,
+
+        #smtpServer
+        [Parameter()]
+        [string]$smtpServer,
+
+        #smtpPort
+        [Parameter()]
+        [string]$smtpPort,
+
+        #credential for SMTP server (if applicable)
+        [Parameter()]
+        [pscredential]$smtpCredential,
+
+        #switch to indicate if SSL will be used for SMTP relay
+        [Parameter()]
+        [switch]$smtpSSL,
+
+        #Switch to enable email report
+        [Parameter()]
+        [switch]$sendEmail,
+
+        #Switch to enable email report
+        [Parameter()]
+        [int]$removeOldReports
+)
+
+#start FUNCTIONS
+#===========================================
+#Function to Stop Transaction Logging
+Function Stop-TxnLogging
+{
+	$txnLog=""
+	Do {
+		try {
+			Stop-Transcript | Out-Null
+		} 
+        catch [System.InvalidOperationException]
+        {
+			$txnLog="stopped"
+		}
+    } While ($txnLog -ne "stopped")
+}
+
+#Function to Start Transaction Logging
+Function Start-TxnLogging
+{
+    param 
+    (
+        [Parameter(Mandatory=$true,Position=0)]
+        [string]$logDirectory
+    )
+	Stop-TxnLogging
+    Start-Transcript $logDirectory -Append
+}
+
+#Function to get Script Version and ProjectURI for PSv4
+Function Get-ScriptInfo
+{
+    param 
+    (
+        [Parameter(Mandatory=$true,Position=0)]
+        [string]$Path
+    )
+    $scriptInfo = "" | Select-Object Version,ProjectURI
+    $scriptInfo.Version = (Select-String -Pattern ".VERSION" -Path $Path)[0].ToString().split(" ")[1]
+    $scriptInfo.ProjectURI = (Select-String -Pattern ".PROJECTURI" -Path $Path)[0].ToString().split(" ")[1]
+    Return $scriptInfo
+}
+
+#===========================================
+#end FUNCTIONS
+
+#$script_root = Split-Path -Parent -Path $MyInvocation.MyCommand.Definition
+#Get script version and url
+if ($PSVersionTable.psversion.Major -lt 5) 
+{
+    $scriptInfo = Get-ScriptInfo -Path $MyInvocation.MyCommand.Definition
+}
+else 
+{
+    $scriptInfo = Test-ScriptFileInfo -Path $MyInvocation.MyCommand.Definition
+}
+#============================
+
+#start PARAMETER CHECK
+#===========================================
+$isAllGood = $true
+
+if ($sendEmail)
+{
+    if (!$sender)
+    {
+        Write-Host (get-date -Format "dd-MMM-yyyy hh:mm:ss tt") ": ERROR: A valid sender email address is not specified." -ForegroundColor Yellow
+        $isAllGood = $false
+    }
+
+    if (!$recipients)
+    {
+        Write-Host (get-date -Format "dd-MMM-yyyy hh:mm:ss tt") ": ERROR: No recipients specified." -ForegroundColor Yellow
+        $isAllGood = $false
+    }
+
+    if (!$smtpServer )
+    {
+        Write-Host (get-date -Format "dd-MMM-yyyy hh:mm:ss tt") ": ERROR: No SMTP Server specified." -ForegroundColor Yellow
+        $isAllGood = $false
+    }
+
+    if (!$smtpPort )
+    {
+        Write-Host (get-date -Format "dd-MMM-yyyy hh:mm:ss tt") ": ERROR: No SMTP Port specified." -ForegroundColor Yellow
+        $isAllGood = $false
+    }
+}
+
+if ($isAllGood -eq $false)
+{
+    Write-Host (get-date -Format "dd-MMM-yyyy hh:mm:ss tt") ": ERROR: Exiting Script." -ForegroundColor Yellow
+    EXIT
+}
+#===========================================
+#end PARAMETER CHECK
+
+#start Mail Header
+#===========================================
+$mailHeader=@'
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+table {
+  font-family: "Century Gothic", sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+}
+td, th {
+  border: 1px solid #dddddd;
+  text-align: left;
+  padding: 8px;
+}
+
+</style>
+</head>
+'@
+#===========================================
+#end Mail Header
+
+#start PATHS
+#===========================================
+$today = Get-Date
+[string]$fileSuffix = '{0:dd-MMM-yyyy_hh-mm_tt}' -f $today
+$logFile = "$($logDirectory)\Log_$($fileSuffix).log"
+$outputCSV = "$($outputDirectory)\delete-Summary_$($fileSuffix).csv"
+$outputHTML = "$($outputDirectory)\delete-Summary_$($fileSuffix).html"
+
+#Create folders if not found
+if ($logDirectory)
+{
+    if (!(Test-Path $logDirectory)) 
+    {
+        New-Item -ItemType Directory -Path $logDirectory | Out-Null
+        #start transcribing----------------------------------------------------------------------------------
+        Start-TxnLogging $logFile
+        #----------------------------------------------------------------------------------------------------
+    }
+	else
+	{
+		Start-TxnLogging $logFile
+	}
+}
+
+if (!(Test-Path $outputDirectory)) 
+{
+	New-Item -ItemType Directory -Path $outputDirectory | Out-Null
+}
+#===========================================
+#end PATHS
+
+#start Files List
+#===========================================
+$fileParams = @{
+    Path = $Paths
+}
+
+if ($Recurse){$fileParams+=@{Recurse=$true}}
+if ($Include){$fileParams+=@{Include=$Include}}
+if ($Exclude){$fileParams+=@{Exclude=$Exclude}}
+
+$fileParams
+Write-Host ""
+$filesToDelete = Get-ChildItem @fileParams | Where-Object {$_.LastWriteTime -ge $fromDate -AND $_.LastAccessTime -le $toDate}
+#===========================================
+#end Files List
+
+#start DELETION
+#===========================================
+if ($filesToDelete)
+{
+    $resultLog = @()
+    $successful = 0
+    $failed = 0
+    [int64]$deletedSize = 0
+    [int64]$failedSize = 0
+    foreach ($file in $filesToDelete)
+    {
+        $temp = "" | Select-Object FileName,FileSize,Status        
+        $temp.FileName = $file.FullName
+        $temp.FileSize = $file.Length
+        
+        try {
+			Remove-Item -Path ($file.FullName) -Force -Confirm:$false -ErrorAction Stop
+            $temp.Status = "Success"
+            $successful = $successful+1
+            $deletedSize = $deletedSize + $file.Length
+            Write-Host (get-date -Format "dd-MMM-yyyy hh:mm:ss tt") ": Delete $($file.FullName) - Success " -ForegroundColor Green
+		}
+		catch {
+            $temp.Status = "Failed"
+            $failed = $failed+1
+            $failedSize = $failedSize + $file.Length
+			Write-Host (get-date -Format "dd-MMM-yyyy hh:mm:ss tt") ": Delete $($file.FullName) - Failed " -ForegroundColor Red
+		}        
+        $resultLog += $temp
+    }
+    $resultLog | Export-Csv -NoTypeInformation $outputCSV
+    $summary = "" | Select-Object Paths,TotalNumberOfFiles,TotalSizeOfAllFiles,SuccessfulDeletions,FailedDeletions,TotalSuccessfulDeletionSize,TotalFailedDeletionSize
+    $summary.Paths = $Paths
+    $summary.TotalNumberOfFiles = "{0:N0}" -f ($filesToDelete).Count
+    $summary.TotalSizeOfAllFiles = "{0:N0}" -f ($filesToDelete | Measure-Object -Property Length -Sum).Sum
+    $summary.SuccessfulDeletions = "{0:N0}" -f $successful
+    $summary.FailedDeletions = "{0:N0}" -f $failed
+    $summary.TotalSuccessfulDeletionSize = "{0:N0}" -f $deletedSize
+    $summary.TotalFailedDeletionSize = "{0:N0}" -f $failedSize
+    Write-Host ""
+    Write-Host (get-date -Format "dd-MMM-yyyy hh:mm:ss tt") ": SUMMARY:"
+    $summary
+}
+#end DELETION
+#===========================================
+
+#start HTML OUTPUT
+#===========================================
+
+if ($headerPrefix)
+{
+    $mailSubject = "[" + $headerPrefix + "] File Deletion Task Summary: " + ('{0:dd-MMM-yyyy hh:mm:ss tt}' -f $Today)
+}
+else 
+{
+    $mailSubject = "File Deletion Task Summary: " + ('{0:dd-MMM-yyyy hh:mm:ss tt}' -f $Today)
+}
+
+$htmlBody += $mailHeader
+$htmlBody += "<body><table>"
+$htmlBody += "<tr><th>--- File Deletion Task Summary ---</th></tr>"
+$htmlBody += "<tr><th>Paths</th><td>" + ($Paths -join ";<br />")+ "</td></tr>"
+$htmlBody += "<tr><th>Total Number of Files</th><td>" + ($summary.TotalNumberOfFiles) + " (" + ($summary.TotalSizeOfAllFiles) + " bytes)</td></tr>"
+$htmlBody += "<tr><th>Successful Deletion</th><td>" + ($summary.SuccessfulDeletions) + " (" + ($summary.TotalSuccessfulDeletionSize) + " bytes)</td></tr>"
+$htmlBody += "<tr><th>Failed Deletion</th><td>" + ($summary.FailedDeletions) + " (" + ($summary.TotalFailedDeletionSize) + " bytes)</td></tr>"
+$htmlBody += "<tr><th>--- SETTINGS ---</th></tr>"
+$htmlBody += "<tr><th>Included</th><td>" + ($Include -join ";") + "</td></tr>"
+$htmlBody += "<tr><th>Excluded</th><td>" + ($Exclude -join ";") + "</td></tr>"
+if ($Recurse)
+{
+    $htmlBody += "<tr><th>Recursive</th><td>Yes</td></tr>"
+}
+else 
+{
+    $htmlBody += "<tr><th>Recursive</th><td>No</td></tr>"
+}
+
+$htmlBody += "<tr><th>SMTP Server</th><td>" + $smtpServer + "</td></tr>"
+$htmlBody += "<tr><th>SMTP Port</th><td>" + $smtpport + "</td></tr>"
+if ($smtpSSL) 
+{
+    $htmlBody += "<tr><th>SMTP SSL</th><td>Yes</td></tr>"
+}
+else 
+{
+    $htmlBody += "<tr><th>SMTP SSL</th><td>No</td></tr>"
+}
+
+if ($smtpCredential) 
+{
+    $htmlBody += "<tr><th>SMTP Authentication</th><td>Yes</td></tr>"
+}
+else 
+{
+    $htmlBody += "<tr><th>SMTP Authentication</th><td>No</td></tr>"
+}
+
+
+$htmlBody += "</table>"
+$htmlBody += "<p><a href=""$($scriptInfo.ProjectURI)"">$($MyInvocation.MyCommand.Definition.ToString().Split("\")[-1].Split(".")[0]) $($scriptInfo.version)</a></p>"
+$htmlBody += "</body></html>"
+
+#Export HTML Report
+$htmlBody | Out-File $outputHTML
+
+Write-Host (get-date -Format "dd-MMM-yyyy hh:mm:ss tt") ": HTML Summary Report saved in $outputHTML " -ForegroundColor Cyan
+Write-Host (get-date -Format "dd-MMM-yyyy hh:mm:ss tt") ": CSV Summary Report saved in $outputCSV " -ForegroundColor Cyan
+#===========================================
+#end HTML OUTPUT
+
+Stop-TxnLogging
+
+if ($sendEmail)
+{
+    $mailParams = @{
+        From = $sender
+        To = $recipients
+        Subject = $mailSubject
+        Body = $htmlBody
+        BodyAsHTML = $true
+        smtpServer = $smtpServer
+        Port = $smtpPort
+        useSSL = $smtpSSL
+    }
+
+    #Attachments (LOG + CSV)
+    if ($logDirectory)
+    {
+        # (LOG + CSV)
+        $mailParams += @{attachments = $outputCSV,$logFile}
+    }
+    else 
+    {
+        # (LOG Only)
+        $mailParams += @{attachments = $outputCSV}
+    }
+
+    #SMTP Authentication
+    if ($smtpCredential){
+         $mailParams += @{credential = $smtpCredential}
+    }
+
+    Write-Host (get-date -Format "dd-MMM-yyyy hh:mm:ss tt") ": Sending email to" ($recipients -join ",") -ForegroundColor Green
+
+    #Send message
+    Send-MailMessage @mailParams
+}
