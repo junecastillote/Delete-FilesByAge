@@ -1,7 +1,7 @@
 
 <#PSScriptInfo
 
-.VERSION 1.2
+.VERSION 1.3
 
 .GUID f03ddea5-f6e3-498a-b249-1ac6b7ec8f01
 
@@ -246,15 +246,20 @@ $fileParams = @{
 }
 
 if ($Recurse){$fileParams+=@{Recurse=$true}}
-if ($Include){$fileParams+=@{Include=$Include}}
+#if ($Include){$fileParams+=@{Include=$Include}}
 if ($Exclude){$fileParams+=@{Exclude=$Exclude}}
 
 $fileParams
 Write-Host ""
 [datetime]$oldDate = (Get-Date).AddDays(-$daysToKeep)
-#$filesToDelete = Get-ChildItem @fileParams | Where-Object {$_.LastWriteTime -ge $startDate -AND $_.LastAccessTime -le $endDate -and !$_.PSIsContainer}
-$filesToDelete = Get-ChildItem @fileParams | Where-Object {$_.LastWriteTime -lt $oldDate -and !$_.PSIsContainer}
-#$filesToDelete = $filesToDelete | Where-Object {!$_.PSIsContainer}
+
+#$filesToDelete = Get-ChildItem @fileParams | Where-Object {$_.LastWriteTime -lt $oldDate -and !$_.PSIsContainer}
+
+foreach ($fInclude in $Include){
+    $temp = Get-ChildItem @fileParams -Filter $fInclude | Where-Object {$_.LastWriteTime -lt $oldDate -and !$_.PSIsContainer}
+    $filesToDelete += $temp
+}
+
 #===========================================
 #end Files List
 
