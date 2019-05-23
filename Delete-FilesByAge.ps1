@@ -1,7 +1,7 @@
 
 <#PSScriptInfo
 
-.VERSION 1.3
+.VERSION 1.3.1
 
 .GUID f03ddea5-f6e3-498a-b249-1ac6b7ec8f01
 
@@ -30,7 +30,9 @@
 
 .PRIVATEDATA
 
-#>
+#> 
+
+
 
 <# 
 
@@ -312,11 +314,11 @@ if ($filesToDelete)
 
     if ($headerPrefix)
     {
-        $mailSubject = "[" + $headerPrefix + "] File Deletion Task Summary: " + ('{0:dd-MMM-yyyy hh:mm:ss tt}' -f $Today)
+        $mailSubject = "[" + $headerPrefix + "][$($env:COMPUTERNAME)] File Deletion Task Summary: " + ('{0:dd-MMM-yyyy hh:mm:ss tt}' -f $Today)
     }
     else 
     {
-        $mailSubject = "File Deletion Task Summary: " + ('{0:dd-MMM-yyyy hh:mm:ss tt}' -f $Today)
+        $mailSubject = "[$($env:COMPUTERNAME)] File Deletion Task Summary: " + ('{0:dd-MMM-yyyy hh:mm:ss tt}' -f $Today)
     }
 
     $htmlBody += $mailHeader
