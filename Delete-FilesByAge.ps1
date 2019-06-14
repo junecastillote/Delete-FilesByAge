@@ -1,7 +1,7 @@
 
 <#PSScriptInfo
 
-.VERSION 1.3.1
+.VERSION 1.3.2
 
 .GUID f03ddea5-f6e3-498a-b249-1ac6b7ec8f01
 
@@ -134,14 +134,41 @@ Function Start-TxnLogging
 #Function to get Script Version and ProjectURI for PSv4
 Function Get-ScriptInfo
 {
-    param 
+    param
     (
         [Parameter(Mandatory=$true,Position=0)]
         [string]$Path
-    )
-    $scriptInfo = "" | Select-Object Version,ProjectURI
-    $scriptInfo.Version = (Select-String -Pattern ".VERSION" -Path $Path)[0].ToString().split(" ")[1]
-    $scriptInfo.ProjectURI = (Select-String -Pattern ".PROJECTURI" -Path $Path)[0].ToString().split(" ")[1]
+	)
+	
+	$scriptFile = Get-Content $Path
+
+	$props = @{
+		Version = ""
+		ProjectURI = ""
+	}
+
+	$scriptInfo = New-Object PSObject -Property $props
+
+	# Get Version
+	foreach ($line in $scriptFile)
+	{	
+		if ($line -like ".VERSION*")
+		{
+			$scriptInfo.Version = $line.Split(" ")[1]
+			BREAK
+		}	
+	}
+
+	# Get ProjectURI
+	foreach ($line in $scriptFile)
+	{
+		if ($line -like ".PROJECTURI*")
+		{
+			$scriptInfo.ProjectURI = $line.Split(" ")[1]
+			BREAK
+		}		
+	}
+	Remove-Variable scriptFile
     Return $scriptInfo
 }
 
