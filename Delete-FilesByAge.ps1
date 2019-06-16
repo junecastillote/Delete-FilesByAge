@@ -468,6 +468,7 @@ if ($filesToDelete)
             sections = @(
                 @{
                     activityTitle = "Delete Files Older Than $($daysToKeep) Days"
+                    activityImage = "https://raw.githubusercontent.com/junecastillote/Delete-FilesByAge/master/res/deleteFBA.png"
                     activityText = "<a href=""$($scriptInfo.ProjectURI)"">$($MyInvocation.MyCommand.Definition.ToString().Split("\")[-1].Split(".")[0]) $($scriptInfo.version)</a>"
                 },
                 @{
