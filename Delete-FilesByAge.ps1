@@ -468,7 +468,7 @@ if ($filesToDelete)
             sections = @(
                 @{
                     activityTitle = "Delete Files Older Than $($daysToKeep) Days"
-                    activityImage = "https://raw.githubusercontent.com/junecastillote/Delete-FilesByAge/master/res/deleteFBAicon.png"
+                    activityImage = "https://raw.githubusercontent.com/junecastillote/Delete-FilesByAge/master/res/deleteFBAIcon.png"
                     activityText = "<a href=""$($scriptInfo.ProjectURI)"">$($MyInvocation.MyCommand.Definition.ToString().Split("\")[-1].Split(".")[0]) $($scriptInfo.version)</a>"
                 },
                 @{
@@ -483,24 +483,18 @@ if ($filesToDelete)
                             value = "$($summary.TotalNumberOfFiles) files ($($summary.TotalSizeOfAllFiles)) bytes)"
                         },
                         @{
-                            name = "Successful Deletion: "
-                            value = "$($summary.SuccessfulDeletions) files ($($summary.TotalSuccessfulDeletionSize) bytes)"
+                            name = "Successful Deletion:"
+                            value = "<font color=""Green"">$($summary.SuccessfulDeletions) files ($($summary.TotalSuccessfulDeletionSize) bytes)</font>"
                         },
                         @{
-                            name = "Failed Deletion: "
-                            value = "$($summary.FailedDeletions) files ($($summary.TotalFailedDeletionSize) bytes)"
+                            name = "Failed Deletion:"
+                            value = "<font color=""Red"">$($summary.FailedDeletions) files ($($summary.TotalFailedDeletionSize) bytes)</font>"
                         }
                     )
                 }
             )
-        
-            potentialAction = @(@{
-                '@context' = 'http://schema.org'
-                '@type' = 'ViewAction'
-                name = "$($MyInvocation.MyCommand.Definition.ToString().Split("\")[-1].Split(".")[0]) $($scriptInfo.version)"
-                target = @("$($scriptInfo.ProjectURI)")
-            })
         }
+
         Write-Host (get-date -Format "dd-MMM-yyyy hh:mm:ss tt") ": Sending Teams Notification" -ForegroundColor Green
         
         foreach ($uri in $notifyTeams)
@@ -513,14 +507,10 @@ if ($filesToDelete)
                 Write-Host "FAILED: $($_.exception.message)" -ForegroundColor RED
             }
         }
-
-        #Invoke-RestMethod -uri $uri -Method Post -body $teamsMessage -ContentType 'application/json'
-    }
-    
+    }   
 
     #===========================================
     #end MSTeams
-
 
     Write-Host (get-date -Format "dd-MMM-yyyy hh:mm:ss tt") ": HTML Summary Report saved in $outputHTML " -ForegroundColor Cyan
     Write-Host (get-date -Format "dd-MMM-yyyy hh:mm:ss tt") ": CSV Summary Report saved in $outputCSV " -ForegroundColor Cyan
