@@ -1,7 +1,7 @@
 
 <#PSScriptInfo
 
-.VERSION 1.3.2
+.VERSION 1.3.3
 
 .GUID f03ddea5-f6e3-498a-b249-1ac6b7ec8f01
 
@@ -27,6 +27,8 @@
 
 .RELEASENOTES
 
+1.3.3 (June 16, 2019)
+    -Added Teams Notification Option
 
 .PRIVATEDATA
 
@@ -99,7 +101,11 @@ Param(
 
         #switch to indicate if SSL will be used for SMTP relay
         [Parameter()]
-        [switch]$smtpSSL
+        [switch]$smtpSSL,
+
+        #accepts Teams WebHook URI
+        [Parameter()]
+        [string[]]$notifyTeams
 )
 
 #start FUNCTIONS
@@ -341,22 +347,14 @@ if ($filesToDelete)
 
     if ($headerPrefix)
     {
-        $mailSubject = "[" + $headerPrefix + "][$($env:COMPUTERNAME)] File Deletion Task Summary: " + ('{0:dd-MMM-yyyy hh:mm:ss tt}' -f $Today)
+        $mailSubject = "[" + $headerPrefix + "][$($env:COMPUTERNAME)] File Deletion Task Summary"
     }
     else 
     {
-        $mailSubject = "[$($env:COMPUTERNAME)] File Deletion Task Summary: " + ('{0:dd-MMM-yyyy hh:mm:ss tt}' -f $Today)
+        $mailSubject = "[$($env:COMPUTERNAME)] File Deletion Task Summary"
     }
 
     $htmlBody += $mailHeader
-    #$htmlBody += "<body><table>"
-    #$htmlBody += "<tr><th>--- File Deletion Task Summary ---</th></tr>"
-    #$htmlBody += "<tr><th>Paths</th><td>" + ($Paths -join ";<br />")+ "</td></tr>"
-    #$htmlBody += "<tr><th>Total Number of Files</th><td>" + ($summary.TotalNumberOfFiles) + " (" + ($summary.TotalSizeOfAllFiles) + " bytes)</td></tr>"
-    #$htmlBody += "<tr><th>Successful Deletion</th><td>" + ($summary.SuccessfulDeletions) + " (" + ($summary.TotalSuccessfulDeletionSize) + " bytes)</td></tr>"
-    #$htmlBody += "<tr><th>Failed Deletion</th><td>" + ($summary.FailedDeletions) + " (" + ($summary.TotalFailedDeletionSize) + " bytes)</td></tr>"
-    #$htmlBody += "</table>"
-
     $htmlBody += '<body><p><font size="2" face="Tahoma">'
     $htmlBody += "<b>[--- File Deletion Task Summary ---]</b><br /><br />"
     $htmlBody += "<b>Paths:</b> " + ($Paths -join " ; ")+ "<br />"
@@ -437,7 +435,7 @@ if ($filesToDelete)
         $mailParams = @{
             From = $sender
             To = $recipients
-            Subject = $mailSubject
+            Subject = $mailSubject + ": " + ('{0:dd-MMM-yyyy hh:mm:ss tt}' -f $Today)
             Body = $htmlBody
             BodyAsHTML = $true
             smtpServer = $smtpServer
@@ -458,6 +456,70 @@ if ($filesToDelete)
     }
     #===========================================
     #end MAIL
+
+    #start MSTeams
+    #===========================================
+    if ($notifyTeams)
+    {
+        $teamsMessage = ConvertTo-Json -Depth 4 @{
+            title = $mailSubject
+            text = ('{0:dd-MMM-yyyy hh:mm:ss tt}' -f $Today)
+    
+            sections = @(
+                @{
+                    activityTitle = "Delete Files Older Than $($daysToKeep) Days"
+                    activityText = "<a href=""$($scriptInfo.ProjectURI)"">$($MyInvocation.MyCommand.Definition.ToString().Split("\")[-1].Split(".")[0]) $($scriptInfo.version)</a>"
+                },
+                @{
+                    title = ""
+                    facts = @(
+                        @{
+                            name = "Paths:"
+                            value = ($Paths -join "; ")
+                        },
+                        @{
+                            name = "Total Number of Files: "
+                            value = "$($summary.TotalNumberOfFiles) files ($($summary.TotalSizeOfAllFiles)) bytes)"
+                        },
+                        @{
+                            name = "Successful Deletion: "
+                            value = "$($summary.SuccessfulDeletions) files ($($summary.TotalSuccessfulDeletionSize) bytes)"
+                        },
+                        @{
+                            name = "Failed Deletion: "
+                            value = "$($summary.FailedDeletions) files ($($summary.TotalFailedDeletionSize) bytes)"
+                        }
+                    )
+                }
+            )
+        
+            potentialAction = @(@{
+                '@context' = 'http://schema.org'
+                '@type' = 'ViewAction'
+                name = "$($MyInvocation.MyCommand.Definition.ToString().Split("\")[-1].Split(".")[0]) $($scriptInfo.version)"
+                target = @("$($scriptInfo.ProjectURI)")
+            })
+        }
+        Write-Host (get-date -Format "dd-MMM-yyyy hh:mm:ss tt") ": Sending Teams Notification" -ForegroundColor Green
+        
+        foreach ($uri in $notifyTeams)
+        {
+            try {
+                Invoke-RestMethod -uri $uri -Method Post -body $teamsMessage -ContentType 'application/json' -ErrorAction Stop
+                Write-Host "SUCCESS: $($uri)" -ForegroundColor Green
+            }
+            catch {
+                Write-Host "FAILED: $($_.exception.message)" -ForegroundColor RED
+            }
+        }
+
+        #Invoke-RestMethod -uri $uri -Method Post -body $teamsMessage -ContentType 'application/json'
+    }
+    
+
+    #===========================================
+    #end MSTeams
+
 
     Write-Host (get-date -Format "dd-MMM-yyyy hh:mm:ss tt") ": HTML Summary Report saved in $outputHTML " -ForegroundColor Cyan
     Write-Host (get-date -Format "dd-MMM-yyyy hh:mm:ss tt") ": CSV Summary Report saved in $outputCSV " -ForegroundColor Cyan
