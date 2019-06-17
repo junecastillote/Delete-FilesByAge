@@ -1,7 +1,7 @@
 
 <#PSScriptInfo
 
-.VERSION 1.3.5
+.VERSION 1.3.6
 
 .GUID f03ddea5-f6e3-498a-b249-1ac6b7ec8f01
 
@@ -35,6 +35,8 @@
     - Fixed CSS formatting of report
     - Fixed MS Teams JSON notification format
     - Code cleanup
+1.3.6 (June 18, 2019)
+    - Added timezone format
 
 .PRIVATEDATA
 
@@ -184,6 +186,14 @@ Function Get-ScriptInfo
 	Remove-Variable scriptFile
     Return $scriptInfo
 }
+
+#Function to get current system timezone (for PS versions below 5)
+Function Get-TimeZoneInfo
+{  
+	$tzName = ([System.TimeZone]::CurrentTimeZone).StandardName
+	$tzInfo = [System.TimeZoneInfo]::FindSystemTimeZoneById($tzName)
+	Return $tzInfo	
+}
 #...................................
 #EndRegion FUNCTION
 #...................................
@@ -199,6 +209,10 @@ else
     $scriptInfo = Test-ScriptFileInfo -Path $MyInvocation.MyCommand.Definition
 }
 #...................................
+
+#Get TimeZone Information
+$timeZoneInfo = Get-TimeZoneInfo
+
 #EndRegion SCRIPT INFO
 #...................................
 #...................................
@@ -358,6 +372,7 @@ $css_string = @'
 $today = Get-Date
 [string]$fileSuffix = '{0:dd-MMM-yyyy_hh-mm_tt}' -f $today
 $today = $today.ToString("F")
+$today = "$($today) $($timeZoneInfo.DisplayName.ToString().Split(" ")[0])"
 $logFile = "$($logDirectory)\Log_$($fileSuffix).log"
 $outputCSV = "$($outputDirectory)\delete-Summary_$($fileSuffix).csv"
 $outputHTML = "$($outputDirectory)\delete-Summary_$($fileSuffix).html"
