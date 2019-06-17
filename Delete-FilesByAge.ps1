@@ -31,6 +31,9 @@
     - Added Teams Notification Option
 1.3.4 (June 17, 2019)
     - Additional fact (Source:) for MS Teams notification
+1.3.5 (June 18, 2019)
+    - Fixed CSS formatting of report
+    - Fixed MS Teams JSON notification format
 
 .PRIVATEDATA
 
@@ -110,8 +113,9 @@ Param(
         [string[]]$notifyTeams
 )
 
-#start FUNCTIONS
-#===========================================
+#...................................
+#Region FUNCTION
+#...................................
 #Function to Stop Transaction Logging
 Function Stop-TxnLogging
 {
@@ -179,12 +183,12 @@ Function Get-ScriptInfo
 	Remove-Variable scriptFile
     Return $scriptInfo
 }
-
-#===========================================
-#end FUNCTIONS
-
-#$script_root = Split-Path -Parent -Path $MyInvocation.MyCommand.Definition
-#Get script version and url
+#...................................
+#EndRegion FUNCTION
+#...................................
+#...................................
+#Region SCRIPT INFO
+#...................................
 if ($PSVersionTable.psversion.Major -lt 5) 
 {
     $scriptInfo = Get-ScriptInfo -Path $MyInvocation.MyCommand.Definition
@@ -193,10 +197,12 @@ else
 {
     $scriptInfo = Test-ScriptFileInfo -Path $MyInvocation.MyCommand.Definition
 }
-#============================
-
-#start PARAMETER CHECK
-#===========================================
+#...................................
+#EndRegion SCRIPT INFO
+#...................................
+#...................................
+#Region PARAMETER CHECK
+#...................................
 $isAllGood = $true
 
 if ($sendEmail)
@@ -231,24 +237,126 @@ if ($isAllGood -eq $false)
     Write-Host (get-date -Format "dd-MMM-yyyy hh:mm:ss tt") ": ERROR: Exiting Script." -ForegroundColor Yellow
     EXIT
 }
-#===========================================
-#end PARAMETER CHECK
+#...................................
+#EndRegion PARAMETER CHECK
+#...................................
+#...................................
+#Region CSS
+#...................................
+$css_string = @'
+<style type="text/css">
+#HeadingInfo 
+	{
+		font-family:"Segoe UI";
+		width:100%;
+		border-collapse:collapse;
+	} 
+#HeadingInfo td, #HeadingInfo th 
+	{
+		font-size:0.8em;
+		padding:3px 7px 2px 7px;
+	} 
+#HeadingInfo th  
+	{ 
+		font-size:2.0em;
+		font-weight:normal;
+		text-align:left;
+		padding-top:5px;
+		padding-bottom:4px;
+		background-color:#604767;
+		color:#fff;
+	} 
+#SectionLabels
+	{ 
+		font-family:"Segoe UI";
+		width:100%;
+		border-collapse:collapse;
+	}
+#SectionLabels th.data
+	{
+		font-size:2.0em;
+		text-align:left;
+		padding-top:5px;
+		padding-bottom:4px;
+		background-color:#fff;
+		color:#000; 
+	} 
+#data 
+	{
+		font-family:"Segoe UI";
+		width:100%;
+        border-collapse:collapse;
+	} 
+#data td, #data th
+	{ 
+		font-size:0.8em;
+		border:1px solid #DDD;
+        padding:3px 7px 2px 7px; 
+        vertical-align:top;
+	} 
+#data th  
+	{
+		font-size:0.8em;
+		padding-top:5px;
+		padding-bottom:4px;
+		background-color:#00B388;
+        color:#fff; text-align:left;        
+	} 
+#data td 
+	{ 	font-size:0.8em;
+		padding-top:5px;
+		padding-bottom:4px;
+        text-align:left;
+	} 
+#data td.bad
+	{ 	font-size:0.8em;
+		font-weight: bold;
+		padding-top:5px;
+		padding-bottom:4px;
+		color:#f04953;
+	} 
+#data td.good
+	{ 	font-size:0.8em;
+		font-weight: bold;
+		padding-top:5px;
+		padding-bottom:4px;
+		color:#01a982;
+	}
 
-#start Mail Header
-#===========================================
-$mailHeader=@'
-<!DOCTYPE html>
-<html>
-<head>
-</head>
+.status {
+	width: 10px;
+	height: 10px;
+	margin-right: 7px;
+	margin-bottom: 0px;
+	background-color: #CCC;
+	background-position: center;
+	opacity: 0.8;
+	display: inline-block;
+}
+.green {
+	background: #01a982;
+}
+.purple {
+	background: #604767;
+}
+.orange {
+	background: #ffd144;
+}
+.red {
+	background: #f04953;
+}
+</style>
 '@
-#===========================================
-#end Mail Header
+#...................................
+#EndRegion CSS
+#...................................
 
-#start PATHS
-#===========================================
+#...................................
+#Region PATHS
+#...................................
 $today = Get-Date
 [string]$fileSuffix = '{0:dd-MMM-yyyy_hh-mm_tt}' -f $today
+$today = $today.ToString("F")
 $logFile = "$($logDirectory)\Log_$($fileSuffix).log"
 $outputCSV = "$($outputDirectory)\delete-Summary_$($fileSuffix).csv"
 $outputHTML = "$($outputDirectory)\delete-Summary_$($fileSuffix).html"
@@ -269,21 +377,22 @@ if ($logDirectory)
 	}
 }
 
-if (!(Test-Path $outputDirectory)) 
+if (!(Test-Path $outputDirectory))
 {
 	New-Item -ItemType Directory -Path $outputDirectory | Out-Null
 }
-#===========================================
-#end PATHS
+#...................................
+#EndRegion PARAMETER CHECK
+#...................................
 
-#start Files List
-#===========================================
+#...................................
+#Region GENERATE FILES LIST
+#...................................
 $fileParams = @{
     Path = $Paths
 }
 
 if ($Recurse){$fileParams+=@{Recurse=$true}}
-#if ($Include){$fileParams+=@{Include=$Include}}
 if ($Exclude){$fileParams+=@{Exclude=$Exclude}}
 
 $fileParams
@@ -297,11 +406,13 @@ foreach ($fInclude in $Include){
     $filesToDelete += $temp
 }
 
-#===========================================
-#end Files List
+#...................................
+#EndRegion GENERATE FILES LIST
+#...................................
 
-#start DELETION
-#===========================================
+#...................................
+#Region FILE DELETION
+#...................................
 if ($filesToDelete)
 {
     Write-Host (get-date -Format "dd-MMM-yyyy hh:mm:ss tt") ": Found Total of $($filesToDelete.Count) files" -ForegroundColor Green
@@ -344,94 +455,74 @@ if ($filesToDelete)
     Write-Host (get-date -Format "dd-MMM-yyyy hh:mm:ss tt") ": SUMMARY:"
     $summary
 
-    #start HTML OUTPUT
-    #===========================================
+    #...................................
+    #Region HTML
+    #...................................
 
     if ($headerPrefix)
     {
-        $mailSubject = "[" + $headerPrefix + "][$($env:COMPUTERNAME)] File Deletion Task Summary"
+        $mailSubject = "[" + $headerPrefix + "] File Deletion Task Summary"
     }
     else 
     {
-        $mailSubject = "[$($env:COMPUTERNAME)] File Deletion Task Summary"
+        $mailSubject = "File Deletion Task Summary"
     }
+   
+    $htmlBody += "<html><head><title>$($mailSubject) - $($Today)</title><meta http-equiv=""Content-Type"" content=""text/html; charset=ISO-8859-1"" />"
+    $htmlBody += $css_string
+    $htmlBody += '</head><body><p><font size="2" face="Tahoma">'
+    $htmlBody += '<table id="HeadingInfo">'
 
-    $htmlBody += $mailHeader
-    $htmlBody += '<body><p><font size="2" face="Tahoma">'
-    $htmlBody += "<h4>Delete Files Older Than $($daysToKeep) Days</h4><br />"
-    $htmlBody += "<b>Paths:</b> " + ($Paths -join " ; ")+ "<br />"
-    $htmlBody += "<b>Total Number of Files:</b> " + ($summary.TotalNumberOfFiles) + " (" + ($summary.TotalSizeOfAllFiles) + " bytes)<br />"
-    $htmlBody += "<b><font color=""Green"">Successful Deletion:</b></font> " + ($summary.SuccessfulDeletions) + " (" + ($summary.TotalSuccessfulDeletionSize) + " bytes)<br />"
-    $htmlBody += "<b><font color=""Red"">Failed Deletion:</b></font> " + ($summary.FailedDeletions) + " (" + ($summary.TotalFailedDeletionSize) + " bytes)<br />"
-    $htmlBody += "<br /><br />"
-    $htmlBody += '<p><font size="2" face="Tahoma"><u>Paremeters</u><br />'
-    $htmlBody += '<b>[SELECTION]</b><br />'
-    $htmlBody += "Included: " + ($Include -join ";") + "<br />"
-    $htmlBody += "Excluded: " + ($Exclude -join ";") + "<br />"
-    if ($Recurse)
+    if ($headerPrefix)
     {
-        $htmlBody += "Recursive: Yes <br /><br />"
+        $htmlBody += '<tr><th>'+ $headerPrefix + '<br />Delete Files Older Than ' + $daysToKeep + ' Days<br / >'+ $today +'</th></tr>'
     }
     else 
     {
-        $htmlBody += "Recursive: No <br /><br />"
+        $htmlBody += '<tr><th>Delete Files Older Than ' + $daysToKeep + ' Days<br / >'+ $today +'</th></tr>'
     }
+    $htmlBody += '</table><hr />'
+    $htmlBody += '<table id="SectionLabels">'
+    $htmlBody += '<tr><th class="data">Summary</th></tr></table>'
+    $htmlBody += '<table id="data">'
+    $htmlBody += '<tr><th width="15%">Computer</th><td>'+ $env:COMPUTERNAME +'</td></tr>'
+    $htmlBody += '<tr><th>Paths</th><td>'+ ($Paths -join "<br />") +'</td></tr>'
+    $htmlBody += '<tr><th>Successful Deletion</th><td class="good">' + ($summary.SuccessfulDeletions) + ' files (' + ($summary.TotalSuccessfulDeletionSize) + ' bytes)</td></tr>'
+    $htmlBody += '<tr><th>Failed Deletion</th><td class="bad">' + ($summary.FailedDeletions) + ' files (' + ($summary.TotalFailedDeletionSize) + ' bytes)</td></tr>'
+    $htmlBody += '<tr><th>Total Files</th><td>' + ($summary.TotalNumberOfFiles) + ' files (' + ($summary.TotalSizeOfAllFiles) + ' bytes)</td></tr>'
+    $htmlBody += '</table><hr />'
+
+    #start table SETTINGS
+    $htmlBody += '<table id="SectionLabels">'
+    $htmlBody += '<tr><th class="data">Settings</th></tr></table>'
+    $htmlBody += '<table id="data">'
+    $htmlBody += '<tr><th width="15%">Included</th><td>'+ ($Include -join ";") +'</td></tr>'
+    $htmlBody += '<tr><th width="15%">Excluded</th><td>'+ ($Exclude -join ";") +'</td></tr>'
+    $htmlBody += '<tr><th width="15%">Recursive</th><td>'+ (invoke-command {if ($Recurse) {return "Yes"} else {return "No"}}) +'</td></tr>'
+    $htmlBody += '<tr><th width="15%">Send Email Report</th><td>'+ (invoke-command {if ($sendEmail) {return "Yes"} else {return "No"}}) +'</td></tr>'
+    $htmlBody += '<tr><th width="15%">SMTP Server Name or IP</th><td>'+ $smtpServer +'</td></tr>'
+    $htmlBody += '<tr><th width="15%">SMTP Server Port</th><td>'+ $smtpPort +'</td></tr>'
+    $htmlBody += '<tr><th width="15%">SMTP SSL in Use</th><td>'+ (invoke-command {if ($smtpSSL) {return "Yes"} else {return "No"}}) +'</td></tr>'
+    $htmlBody += '<tr><th width="15%">SMTP Login Required</th><td>' + (invoke-command {if ($smtpCredential) {return "Yes"} else {return "No"}}) + '</td></tr>'
+    $htmlBody += '<tr><th width="15%">Script File</th><td>' + $MyInvocation.MyCommand.Definition + '</td></tr>'
+    $htmlBody += '<tr><th width="15%">Csv Report File</th><td>' + $outputCSV + '</td></tr>'
+    $htmlBody += '<tr><th width="15%">Html Report File</th><td>' + $outputHTML + '</td></tr>'
+    $htmlBody += '<tr><th width="15%">Script Version</th><td>' + "<a href=""$($scriptInfo.ProjectURI)"">$($MyInvocation.MyCommand.Definition.ToString().Split("\")[-1].Split(".")[0]) $($scriptInfo.version)</a>" + '</td></tr>'   
+    $htmlBody += '</table><hr />'
+    #end table SETTINGS
     
-    $htmlBody += '<b>[MAIL]</b><br />'
-
-    if ($sendEmail)
-    {
-        $htmlBody += "Send Email Report: Yes <br />"
-    }
-    else 
-    {
-        $htmlBody += "Send Email Report: No <br />"
-    }
-
-    $htmlBody += "SMTP Server: " + $smtpServer + "<br />"
-    $htmlBody += "SMTP Port: " + $smtpport + "<br />"
-
-    if ($smtpSSL)
-    {
-        $htmlBody += "SMTP SSL: Yes <br />"
-    }
-    else 
-    {
-        $htmlBody += "SMTP SSL: No <br />"
-    }
-
-    if ($smtpCredential) 
-    {
-        $htmlBody += "SMTP Authentication: Yes <br /><br />"
-    }
-    else 
-    {
-        $htmlBody += "SMTP Authentication: No <br /><br />"
-    }
-
-    $htmlBody += '<b>[REPORT]</b><br />'
-    $htmlBody += 'Generated from Server: ' + (Get-Content env:computername) + '<br />'
-    $htmlBody += 'Script File: ' + $MyInvocation.MyCommand.Definition + '<br />'
-    $htmlBody += 'CSV Summary: ' + $outputCSV + '<br />'
-    $htmlBody += 'HTML Summary: ' + $outputHTML + '<br />'
-    
-    $htmlBody += '</p>'
-    #=====
-
-
-    
-    $htmlBody += "<p><a href=""$($scriptInfo.ProjectURI)"">$($MyInvocation.MyCommand.Definition.ToString().Split("\")[-1].Split(".")[0]) $($scriptInfo.version)</a></p>"
     $htmlBody += "</body></html>"
 
     #Export HTML Report
     $htmlBody | Out-File $outputHTML
-
     
-    #===========================================
-    #end HTML OUTPUT
+    #...................................
+    #EndRegion HTML
+    #...................................
 
-    #start MAIL
-    #===========================================
+    #...................................
+    #Region EMAIL
+    #...................................
     if ($sendEmail)
     {
         $mailParams = @{
@@ -456,11 +547,13 @@ if ($filesToDelete)
         #Send message
         Send-MailMessage @mailParams
     }
-    #===========================================
-    #end MAIL
+    #...................................
+    #EndRegion EMAIL
+    #...................................
 
-    #start MSTeams
-    #===========================================
+    #...................................
+    #Region TEAMS
+    #...................................
     if ($notifyTeams)
     {
         $teamsMessage = ConvertTo-Json -Depth 4 @{
@@ -477,8 +570,12 @@ if ($filesToDelete)
                     title = "<h4>Summary</h4>"
                     facts = @(
                         @{
+                            name = "Computer:"
+                            value = "$($env:COMPUTERNAME)"
+                        },
+                        @{
                             name = "Paths:"
-                            value = ($Paths -join "; ")
+                            value = ($Paths -join ";<br />")
                         },
                         @{
                             name = "Total Number of Files: "
@@ -523,11 +620,7 @@ if ($filesToDelete)
                             value = $outputHTML
                         },
                         @{
-                            name = "Source:"
-                            value = "$($env:COMPUTERNAME)"
-                        },
-                        @{
-                            name = "Version:"
+                            name = "Script Version:"
                             value = "<a href=""$($scriptInfo.ProjectURI)"">$($MyInvocation.MyCommand.Definition.ToString().Split("\")[-1].Split(".")[0]) $($scriptInfo.version)</a>"
                         }
                     )
@@ -548,9 +641,9 @@ if ($filesToDelete)
             }
         }
     }   
-
-    #===========================================
-    #end MSTeams
+    #...................................
+    #EndRegion TEAMS
+    #...................................
 
     Write-Host (get-date -Format "dd-MMM-yyyy hh:mm:ss tt") ": HTML Summary Report saved in $outputHTML " -ForegroundColor Cyan
     Write-Host (get-date -Format "dd-MMM-yyyy hh:mm:ss tt") ": CSV Summary Report saved in $outputCSV " -ForegroundColor Cyan
@@ -559,8 +652,9 @@ else
 {
     Write-Host (get-date -Format "dd-MMM-yyyy hh:mm:ss tt") ": No files to delete. Exiting script" -ForegroundColor Green
 }
-#end DELETION
-#===========================================
+#...................................
+#EndRegion FILE DELETION
+#...................................
 
 
 if ($logDirectory) {Write-Host (get-date -Format "dd-MMM-yyyy hh:mm:ss tt") ": Transcript Log saved in $logfile " -ForegroundColor Cyan}
