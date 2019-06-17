@@ -1,7 +1,7 @@
 
 <#PSScriptInfo
 
-.VERSION 1.3.3
+.VERSION 1.3.4
 
 .GUID f03ddea5-f6e3-498a-b249-1ac6b7ec8f01
 
@@ -28,7 +28,9 @@
 .RELEASENOTES
 
 1.3.3 (June 16, 2019)
-    -Added Teams Notification Option
+    - Added Teams Notification Option
+1.3.4 (June 17, 2019)
+    - Additional fact (Source:) for MS Teams notification
 
 .PRIVATEDATA
 
@@ -356,7 +358,7 @@ if ($filesToDelete)
 
     $htmlBody += $mailHeader
     $htmlBody += '<body><p><font size="2" face="Tahoma">'
-    $htmlBody += "<b>[--- File Deletion Task Summary ---]</b><br /><br />"
+    $htmlBody += "<h4>Delete Files Older Than $($daysToKeep) Days</h4><br />"
     $htmlBody += "<b>Paths:</b> " + ($Paths -join " ; ")+ "<br />"
     $htmlBody += "<b>Total Number of Files:</b> " + ($summary.TotalNumberOfFiles) + " (" + ($summary.TotalSizeOfAllFiles) + " bytes)<br />"
     $htmlBody += "<b><font color=""Green"">Successful Deletion:</b></font> " + ($summary.SuccessfulDeletions) + " (" + ($summary.TotalSuccessfulDeletionSize) + " bytes)<br />"
@@ -404,7 +406,7 @@ if ($filesToDelete)
     }
     else 
     {
-        $htmlBody += "SMTP Authentication: Yes <br /><br />"
+        $htmlBody += "SMTP Authentication: No <br /><br />"
     }
 
     $htmlBody += '<b>[REPORT]</b><br />'
@@ -463,16 +465,16 @@ if ($filesToDelete)
     {
         $teamsMessage = ConvertTo-Json -Depth 4 @{
             title = $mailSubject
-            text = ('{0:dd-MMM-yyyy hh:mm:ss tt}' -f $Today)
+            text = ('{0:dd-MMM-yyyy hh:mm tt}' -f $Today)
     
             sections = @(
                 @{
                     activityTitle = "Delete Files Older Than $($daysToKeep) Days"
                     activityImage = "https://raw.githubusercontent.com/junecastillote/Delete-FilesByAge/master/res/deleteFBAIcon.png"
-                    activityText = "<a href=""$($scriptInfo.ProjectURI)"">$($MyInvocation.MyCommand.Definition.ToString().Split("\")[-1].Split(".")[0]) $($scriptInfo.version)</a>"
+                    activityText = ""
                 },
                 @{
-                    title = ""
+                    title = "<h4>Summary</h4>"
                     facts = @(
                         @{
                             name = "Paths:"
@@ -489,6 +491,44 @@ if ($filesToDelete)
                         @{
                             name = "Failed Deletion:"
                             value = "<font color=""Red"">$($summary.FailedDeletions) files ($($summary.TotalFailedDeletionSize) bytes)</font>"
+                        }
+                    )
+                },
+                
+                @{
+                    title = "<h4>Settings</h4>"
+                    facts = @(
+                        @{
+                            name = "Include:"
+                            value = ($Include -join ";")
+                        },
+                        @{
+                            name = "Exclude:"
+                            value = ($Exclude -join ";")
+                        },
+                        @{
+                            name = "Recurse:"
+                            value = "$($Recurse)"
+                        }
+                        @{
+                            name = "Script File:"
+                            value = $MyInvocation.MyCommand.Definition
+                        }
+                        @{
+                            name = "Csv Report File:"
+                            value = $outputCSV
+                        }
+                        @{
+                            name = "Html Report File:"
+                            value = $outputHTML
+                        },
+                        @{
+                            name = "Source:"
+                            value = "$($env:COMPUTERNAME)"
+                        },
+                        @{
+                            name = "Version:"
+                            value = "<a href=""$($scriptInfo.ProjectURI)"">$($MyInvocation.MyCommand.Definition.ToString().Split("\")[-1].Split(".")[0]) $($scriptInfo.version)</a>"
                         }
                     )
                 }
