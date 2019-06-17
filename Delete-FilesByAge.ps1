@@ -437,7 +437,7 @@ if ($filesToDelete)
         $mailParams = @{
             From = $sender
             To = $recipients
-            Subject = $mailSubject + ": " + ('{0:dd-MMM-yyyy hh:mm:ss tt}' -f $Today)
+            Subject = $mailSubject + ": " + ('{0:dd-MMM-yyyy hh:mm tt}' -f $Today)
             Body = $htmlBody
             BodyAsHTML = $true
             smtpServer = $smtpServer
