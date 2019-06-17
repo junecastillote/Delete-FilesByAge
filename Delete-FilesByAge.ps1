@@ -1,7 +1,7 @@
 
 <#PSScriptInfo
 
-.VERSION 1.3.6
+.VERSION 1.3.7
 
 .GUID f03ddea5-f6e3-498a-b249-1ac6b7ec8f01
 
@@ -37,6 +37,8 @@
     - Code cleanup
 1.3.6 (June 18, 2019)
     - Added timezone format
+1.3.7 (June 18,2019)
+    - Fixed files to delete collection
 
 .PRIVATEDATA
 
@@ -416,7 +418,7 @@ Write-Host ""
 [datetime]$oldDate = (Get-Date).AddDays(-$daysToKeep)
 
 #$filesToDelete = Get-ChildItem @fileParams | Where-Object {$_.LastWriteTime -lt $oldDate -and !$_.PSIsContainer}
-
+$filesToDelete = @()
 foreach ($fInclude in $Include){
     $temp = Get-ChildItem @fileParams -Filter $fInclude | Where-Object {$_.LastWriteTime -lt $oldDate -and !$_.PSIsContainer}
     $filesToDelete += $temp
