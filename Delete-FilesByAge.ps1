@@ -34,6 +34,7 @@
 1.3.5 (June 18, 2019)
     - Fixed CSS formatting of report
     - Fixed MS Teams JSON notification format
+    - Code cleanup
 
 .PRIVATEDATA
 
